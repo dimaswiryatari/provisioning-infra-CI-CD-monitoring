@@ -1,0 +1,12 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: tools
+resources:
+  - namespace.yaml
+  - atlantis-server
+  - ../../module/GH-token.yaml
+  - prometheus-community
+  - ../../../../helm/prometheus-community/repository.yaml
+  - ../../../../helm/grafana/repository.yaml
+  - grafana
+  - grafana-loki

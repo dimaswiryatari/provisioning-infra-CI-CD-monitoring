@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: atlantis-vcs
+data:
+  token: bash64
+  webhook-secret : bash64

@@ -1,0 +1,34 @@
+- hosts: jenkins-agent
+  become: true
+
+  tasks:
+    - name: "update repo"
+      ansible.builtin.apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: "install java"
+      ansible.builtin.apt:
+        name:
+          - openjdk-17-jre-headless
+
+    - name: "install jenkins"
+      ansible.builtin.shell: "{{ item }}"
+      loop:
+        - "curl -fsSL https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key | sudo tee \ /usr/share/keyrings/jenkins-keyring.asc > /dev/null"
+        - "echo deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc] \  https://pkg.jenkins.io/debian-stable binary/ | sudo tee \  /etc/apt/sources.list.d/jenkins.list > /dev/null"
+        - "apt-get update"
+
+    - name: "instal jenkinss"
+      ansible.builtin.apt:
+        name:
+          - jenkins
+
+    - name: "install docker"
+      ansible.builtin.apt:
+        name:
+          - docker.io
+        state: present
+
+    - name: "docker permision"
+      ansible.builtin.shell: chmod 666 /var/run/docker.sock

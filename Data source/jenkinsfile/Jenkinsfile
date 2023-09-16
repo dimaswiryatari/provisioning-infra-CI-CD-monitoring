@@ -1,0 +1,100 @@
+pipeline {
+    agent {
+        label 'docker'
+    }
+    environment{
+            APP_NAME = "web-app"
+            REGISTRY = "gcr.io"
+            RELEASE = "1.0"
+            PROJECT_ID = ""
+            IMAGE_NAME = "$REGISTRY" + "/" + "$PROJECT_ID" + "/" + "$APP_NAME"
+            IMAGE_TAG = "${RELEASE}.${BUILD_NUMBER}"
+    }
+    stages {
+        stage('clean workspace'){
+            steps{
+                cleanWs()
+            }
+        }
+        stage('git clone'){
+            steps {
+                git branch: 'master',
+                    credentialsId: 'github_token',
+                    url: 'https://github.com/dimaswiryatari/web-app.git'
+
+                sh "ls -lat"
+                sh "pwd"
+            }
+        }
+        stage('Builds') {
+            steps {
+                echo 'build image'
+                sh 'docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .'
+            }
+        }
+        stage('push') {
+            environment{
+                SERVICE_ACCOUNT = credentials('gcp_service_account')
+                DISCORD = credentials('url_webhook_discord')    
+            }
+            steps {
+                echo 'push image to gcr'
+                sh 'cat "$SERVICE_ACCOUNT" | docker login -u _json_key --password-stdin https://gcr.io'
+                sh 'docker push ${IMAGE_NAME}:${IMAGE_TAG}'
+            }
+            post {
+                failure {
+                    echo "post failure"
+                    discordSend description: "Jenkins Build And Push Image ${APP_NAME}:${IMAGE_TAG}", footer: "post failure", link: env.BUILD_URL, result: currentBuild.currentResult, title: JOB_NAME, webhookURL: "$DISCORD"
+                }
+                success {
+                    echo "post success"
+                    discordSend description: "Jenkins Build And Push Image ${APP_NAME}:${IMAGE_TAG}", footer: "post success", link: env.BUILD_URL, result: currentBuild.currentResult, title: JOB_NAME, webhookURL: "$DISCORD"
+                }
+                aborted {
+                    echo "post aborted"
+                    discordSend description: "Jenkins Build And Push Image ${APP_NAME}:${IMAGE_TAG}", footer: "post aborted", link: env.BUILD_URL, result: currentBuild.currentResult, title: JOB_NAME, webhookURL: "$DISCORD"
+                }
+            }
+
+        }
+        stage('clean workspace fluxcd'){
+            steps{
+                cleanWs()
+            }
+        }
+        stage('git clone fluxcd'){
+            steps {
+                git branch: 'main',
+                    credentialsId: 'github_token',
+                    url: 'https://github.com/dimaswiryatari/fluxcd-porto.git'
+
+                sh "ls -lat"
+                sh "pwd"
+            }
+        }
+        stage('update deployment image') {
+            steps {
+                echo 'update file'
+                sh "sed -i 's|/${APP_NAME}.*|/${APP_NAME}:${IMAGE_TAG}|g' ./manifest/staging/namespaces/core/web/deployment.yaml"
+            }
+        }
+        stage('trigger fluxcd') {
+            steps {
+                echo 'git push'
+                sh """
+                    git config --global user.email "you@example.com"
+                    git config --global user.name "Your Name"
+                    git add .
+                    git commit -m "update file"
+                """
+                withCredentials([gitUsernamePassword(credentialsId: 'github_token', gitToolName: 'Default')]) {
+                    sh 'git push -u origin main'
+                }
+                
+            }
+        }
+
+    }
+    
+}

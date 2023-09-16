@@ -1,0 +1,16 @@
+export GITHUB_TOKEN=ghp_UqeEm3Rmn1fhNKcvqbFu2yg2HNLxXXXXXXXX
+
+flux bootstrap github \
+  --components-extra=image-reflector-controller,image-automation-controller \
+  --owner=dimaswiryatari \
+  --repository=fluxcd-porto \
+  --branch=main \
+  --path=clusters/fluxcd \
+  --read-write-key \
+  --personal    
+
+json-key screet 
+kubectl create secret -n tools docker-registry gcr-json-key \
+  --docker-server=us.gcr.io \
+  --docker-username=_json_key \
+  --docker-password="$(cat ~/credentials.json)"
